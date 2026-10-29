@@ -34,7 +34,7 @@ pub fn build(b: *std.Build) void {
             .{ go_version, go_build_time },
         ),
     });
-    // `go build` reads the whole module tree (ffi/ + the submodule), and Zig
+    // `go build` reads the whole module graph (`ffi/` plus GOMODCACHE), and Zig
     // cannot watch a directory as an input (`file_inputs` rejects dirs).
     // Declaring the step as side-effecting re-runs it every build, which costs
     // a warm `go build` (about a second) and can never serve a stale library;

@@ -3,7 +3,8 @@
 Embed [mihomo](https://github.com/MetaCubeX/mihomo) as a C ABI shared library
 and drive it directly from Zig — no external controller, no REST round trips.
 
-- `mihomo/` — upstream checkout, registered as a git submodule (branch `Meta`).
+- `go.mod` — pins `github.com/metacubex/mihomo` to a `Meta`-branch pseudo-version
+  (no submodule, no vendored checkout).
 - `ffi/mihomo_abi.h` — C records shared with callers; single source of truth for layouts.
 - `ffi/block.go` — one-allocation result blocks (records, nested arrays and strings).
 - `ffi/exports_typed.go` — typed queries that fill the C records.
@@ -27,7 +28,10 @@ programs.
 
 ## Upstream changes: none
 
-The submodule is pinned at `3f27ef39` and contains **zero source modifications**.
+`go.mod` requires `github.com/metacubex/mihomo` at the pseudo-version
+`v0.0.0-20261021155158-3f27ef39f8c9` (upstream commit `3f27ef39`, `Meta` branch),
+resolved through the Go module proxy. Upstream carries **zero source
+modifications** — there is no submodule and no vendored copy to patch.
 Everything needed (lifecycle, log/traffic streams, proxies, groups, connections,
 rules, providers, DNS, latency tests) is already an exported Go API. The version
 string is injected at link time, exactly like upstream's `Makefile`:
@@ -43,21 +47,27 @@ the first build (Go modules).
 
 ```sh
 zig build                      # install zig-out/lib/libmihomo.so only
-zig build -Dmihomo-version=$(git -C mihomo rev-parse --short HEAD)
+zig build -Dmihomo-version=3f27ef39   # bake a custom constant.Version
 zig build lib                  # build the Go shared library without installing
 zig build test                 # end-to-end suite (starts a real core, ~2 s)
 zig build test-build           # compile the suite without running it
 ```
 
+The Go side resolves `github.com/metacubex/mihomo` from the module proxy
+(`GOMODCACHE`), so nothing is fetched from git and the build works unchanged in a
+Zig package checkout (`zig-pkg/…`) that has no `.git` directory. To hack on
+upstream, clone it next to the repo and add a local
+`replace github.com/metacubex/mihomo => ./mihomo` to `go.mod`; do not commit it.
+
 `constant.BuildTime` is the UTC time of the last configure run (Zig caches the
 generated configuration until `build.zig` or its options change), so it tracks
 graph changes rather than every build.
 
-`go build` reads the whole module tree (`ffi/` plus the submodule) and Zig cannot
-watch a directory as a step input, so the Go step is declared side-effecting and
-re-runs on every build. That costs a warm `go build` (about a second) and can
-never hand back a stale library; the output hash still keeps dependent
-compilations cached.
+`go build` reads the whole module tree (`ffi/` plus the resolved module graph)
+and Zig cannot watch a directory as a step input, so the Go step is declared
+side-effecting and re-runs on every build. That costs a warm `go build` (about a
+second) and can never hand back a stale library; the output hash still keeps
+dependent compilations cached.
 
 ## Linking from Zig
 
@@ -190,6 +200,6 @@ pump goroutine).
 ## License
 
 Linking mihomo makes this project a derivative work of GPL-3.0 code; see
-`LICENSE` (copied from the submodule). Note that upstream's README asks
+`LICENSE` (copied from upstream). Note that upstream's README asks
 downstream projects not affiliated with MetaCubeX to avoid the word `mihomo` in
 their own project names, so rename before publishing.
