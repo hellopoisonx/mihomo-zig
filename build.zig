@@ -51,17 +51,15 @@ pub fn build(b: *std.Build) void {
     b.getInstallStep().dependOn(&install_lib.step);
 
     // --- Zig consumers -------------------------------------------------------
-    // The project ships a library, not an executable: this module only exists so
-    // the end-to-end suite can import src/mihomo.zig. Consumers wire the same
-    // module (or the C ABI) into their own programs.
-    const lib_module = b.createModule(.{
+    // The project ships a library, not an executable: export src/mihomo.zig as a
+    // canonical module so downstream Zig programs can import it via `b.addModule`.
+    const lib_module = b.addModule("mihomo", .{
         .root_source_file = b.path("src/mihomo.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
     });
     linkMihomo(lib_module, shared_lib);
-
     const test_module = b.createModule(.{
         .root_source_file = b.path("tests/e2e.zig"),
         .target = target,
